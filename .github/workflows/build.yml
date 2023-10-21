@@ -1,0 +1,59 @@
+name: build
+
+on:
+  release:
+  workflow_dispatch:
+  
+jobs:
+  build:
+    strategy:
+        matrix:
+          # Include amd64 on all platforms.
+          goos: [ windows, linux ]
+          goarch: [ amd64, 386 ]
+          goamd64: [ v1, v3 ]
+
+    runs-on: ubuntu-latest
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      GOARM: ${{ matrix.goarm }}
+      GOAMD64: ${{ matrix.goamd64 }}
+      CGO_ENABLED: 0
+      
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ^1.19
+        check-latest: true
+
+    - name: Tidy up Go Modules
+      run: go mod tidy
+
+    - name: Get Git Commit Hash
+      id: hash
+      run: echo "git_hash=$(git rev-parse --short HEAD || echo "unknown version")" >> $GITHUB_OUTPUT
+
+    - name: Build
+      run: go build -v -trimpath -ldflags '-X "github.com/layou233/ZBProxy/version.CommitHash=${{ steps.hash.outputs.git_hash }}" -s -w -buildid=' -o NoDelay-${{ matrix.goos }}-${{ matrix.goarch }}-${{ matrix.goarm }}${{ matrix.goamd64 }}
+
+    - name: Handle for Windows Build
+      if: ${{ env.GOOS == 'windows' }}
+      run: mv NoDelay-${{ matrix.goos }}-${{ matrix.goarch }}-${{ matrix.goarm }}${{ matrix.goamd64 }} NoDelay-${{ matrix.goos }}-${{ matrix.goarch }}-${{ matrix.goarm }}${{ matrix.goamd64 }}.exe
+
+    - name: Upload a Non-Windows Build Artifact
+      uses: actions/upload-artifact@v3.1.2
+      if: ${{ env.GOOS != 'windows' }}
+      with:
+        name: NoDelay-${{ matrix.goos }}-${{ matrix.goarch }}-${{ matrix.goarm }}${{ matrix.goamd64 }}
+        path: NoDelay-${{ matrix.goos }}-${{ matrix.goarch }}-${{ matrix.goarm }}${{ matrix.goamd64 }}
+
+    - name: Upload a Windows Build Artifact
+      uses: actions/upload-artifact@v3.1.2
+      if: ${{ env.GOOS == 'windows' }}
+      with:
+        name: NoDelay-${{ matrix.goos }}-${{ matrix.goarch }}-${{ matrix.goarm }}${{ matrix.goamd64 }}.exe
+        path: NoDelay-${{ matrix.goos }}-${{ matrix.goarch }}-${{ matrix.goarm }}${{ matrix.goamd64 }}.exe
