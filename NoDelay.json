@@ -1,0 +1,43 @@
+{
+    "Services": [
+        {
+            "Name": "HypixelDefault",
+            "TargetAddress": "mc.hypixel.net",
+            "TargetPort": 25565,
+            "Listen": 25565,
+            "Flow": "auto",
+            "IPAccess": {
+                "Mode": ""
+            },
+            "Minecraft": {
+                "EnableHostnameRewrite": true,
+                "EnableHostnameAccess": false,
+                "OnlineCount": {
+                    "Max": 10,
+                    "Online": -1,
+                    "EnableMaxLimit": true
+                },
+                "NameAccess": {
+                    "Mode": ""
+                },
+                "AnyDestSettings": {},
+                "PingMode": "",
+                "MotdFavicon": "{LOGO}",
+                "MotdDescription": "                §aHypixel Network §c[1.8-1.20]\n        §b§lDROPPER v1.0 §7- §6§lNEW ARCADE LOBBY"
+            },
+            "TLSSniffing": {
+                "RejectNonTLS": false
+            },
+            "Outbound": {
+                "Type": ""
+            }
+        }
+    ],
+    "PrivateConfig": {
+        "ListAPI": "http://whitelist.hln-network.xyz/isWhitelist.php",
+        "Header": "HLN-Boost",
+        "ContactName": "官方QQ售后群",
+        "ContactLink": "666259678"
+    },
+    "Lists": {}
+}
