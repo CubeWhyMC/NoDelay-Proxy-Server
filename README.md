@@ -30,4 +30,6 @@
 
 🌐 **参考链接**
 
-- NoDelay GitHub 项目页：[https://github.com/Mengke15/NoDelay](https://github.com/Mengke15/NoDelay)
+- ZBProxy 原作者: [Layou233](https://github.com/Layou233)
+- NoDelay 作者: [MKyiwuQwQ](https://github.com/Mengke15)
+- NoDelay GitHub 项目页：[https://github.com/CubewhyMC/NoDelay](https://github.com/CubewhyMC/NoDelay)
