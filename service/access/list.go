@@ -5,14 +5,14 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/layou233/ZBProxy/common/set"
-	"github.com/layou233/ZBProxy/config"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/set"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/config"
 )
 
 func GetTargetList(listName string) (set.StringSet, error) {
-	list, ok := config.Config.Lists[listName]
+	set, ok := config.Config.Lists[listName]
 	if ok {
-		return list, nil
+		return set, nil
 	}
 	return nil, fmt.Errorf("list %q not found", listName)
 }
@@ -30,4 +30,14 @@ func IsWhitelist(playerName string) (bool, error) {
 	}
 
 	return playerName == string(bytes), nil
+}
+
+func IsFirstTime(playerName string) bool {
+	var accessedPlayers = make(map[string]bool)
+	_, exists := accessedPlayers[playerName]
+	if !exists {
+		accessedPlayers[playerName] = true
+		return true
+	}
+	return false
 }

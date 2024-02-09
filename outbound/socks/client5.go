@@ -8,7 +8,7 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/layou233/ZBProxy/common/rw"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/rw"
 )
 
 const (

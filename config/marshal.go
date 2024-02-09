@@ -3,13 +3,13 @@ package config
 import (
 	"encoding/json"
 
-	"github.com/layou233/ZBProxy/common/set"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/set"
 )
 
 type configMainTemp struct {
-	Services      []*ConfigProxyService
+	Services []*ConfigProxyService
 	PrivateConfig *Something
-	Lists         map[string][]string
+	Lists    map[string][]string
 }
 
 var (
@@ -30,16 +30,16 @@ func (c *configMain) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(
 		configMainTemp{
-			Services:      c.Services,
+			Services: c.Services,
 			PrivateConfig: c.PrivateConfig,
-			Lists:         list,
+			Lists:    list,
 		},
 	)
 }
 
 func (c *configMain) UnmarshalJSON(data []byte) (err error) {
 	configTemp := configMainTemp{
-		Services:      c.Services,
+		Services: c.Services,
 		PrivateConfig: c.PrivateConfig,
 	}
 	err = json.Unmarshal(data, &configTemp)
@@ -56,7 +56,7 @@ func (c *configMain) UnmarshalJSON(data []byte) (err error) {
 			c.Lists[k] = set.NewStringSetFromSlice(v)
 		}
 	}
-	c.Services      = configTemp.Services
+	c.Services = configTemp.Services
 	c.PrivateConfig = configTemp.PrivateConfig
 	return nil
 }

@@ -1,21 +1,25 @@
 package service
 
 import (
+	"context"
+	"io"
 	"log"
 	"net"
-	"github.com/layou233/ZBProxy/common"
-	"github.com/layou233/ZBProxy/config"
-	"github.com/layou233/ZBProxy/outbound"
-	"github.com/layou233/ZBProxy/outbound/socks"
-	"github.com/layou233/ZBProxy/service/access"
-	"github.com/layou233/ZBProxy/service/transfer"
+	"strconv"
+
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/config"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/outbound"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/outbound/socks"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/service/access"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/service/transfer"
 
 	"github.com/fatih/color"
 )
 
 var Listeners []net.Listener
 
-func StartNewService(s *config.ConfigProxyService) {
+func StartNewService(ctx context.Context, s *config.ConfigProxyService) {
 	// Check Settings
 	var (
 		isTLSHandleNeeded = s.TLSSniffing.RejectNonTLS ||
@@ -36,18 +40,17 @@ func StartNewService(s *config.ConfigProxyService) {
 	if s.Minecraft.EnableHostnameRewrite && s.Minecraft.RewrittenHostname == "" {
 		s.Minecraft.RewrittenHostname = s.TargetAddress
 	}
-	listen, err := net.ListenTCP("tcp", &net.TCPAddr{
-		IP:   nil, // listens on all available IP addresses of the local system
-		Port: int(s.Listen),
-	})
+	listenConfig := net.ListenConfig{} // TODO: Apply socket options to listeners
+	listen, err := listenConfig.Listen(ctx, "tcp", ":"+strconv.Itoa(int(s.Listen)))
 	if err != nil {
 		log.Panic(color.HiRedString("Service %s: Can't start listening on port %v: %v", s.Name, s.Listen, err.Error()))
 	}
 	Listeners = append(Listeners, listen) // add to Listeners
 
+	// load access lists
 	switch s.IPAccess.Mode {
 	case access.DefaultMode:
-	case access.AllowMode, access.BlockMode, access.DownMode, access.JokeMode:
+	case access.AllowMode, access.BlockMode:
 		if s.IPAccess.ListTags == nil {
 			log.Panic(color.HiRedString("Service %s: ListTags can't be null when access control enabled.", s.Name))
 		}
@@ -60,10 +63,11 @@ func StartNewService(s *config.ConfigProxyService) {
 		log.Panicf("Unknown access control mode: %s", s.IPAccess.Mode)
 	}
 
+	// load Minecraft player name access lists
 	if isMinecraftHandleNeeded {
 		switch s.Minecraft.NameAccess.Mode {
 		case access.DefaultMode:
-		case access.AllowMode, access.BlockMode, access.DownMode, access.JokeMode:
+		case access.AllowMode, access.BlockMode:
 			if s.Minecraft.NameAccess.ListTags == nil {
 				log.Panic(color.HiRedString("Service %s: ListTags can't be null when access control enabled.", s.Name))
 			}
@@ -77,8 +81,7 @@ func StartNewService(s *config.ConfigProxyService) {
 		}
 	}
 
-	out := outbound.NewSystemOutbound(
-		outbound.NewDialerControlFromOptions(s.SocketOptions))
+	out := outbound.NewSystemOutbound(s.SocketOptions)
 	switch s.Outbound.Type {
 	case "socks", "socks5", "socks4a", "socks4":
 		out = &socks.Client{
@@ -96,42 +99,37 @@ func StartNewService(s *config.ConfigProxyService) {
 		FlowType:                flowType,
 	}
 	for {
-		conn, err := listen.AcceptTCP()
-		if err == nil {
-			if s.IPAccess.Mode != access.DefaultMode {
-				// https://stackoverflow.com/questions/29687102/how-do-i-get-a-network-clients-ip-converted-to-a-string-in-golang
-				ip := conn.RemoteAddr().(*net.TCPAddr).IP.String()
-				hit := false
-				for _, list := range s.IPAccess.ListTags {
-					if hit = common.Must(access.GetTargetList(list)).Has(ip); hit {
-						break
-					}
-				}
-				switch s.IPAccess.Mode {
-				case access.AllowMode:
-					if !hit {
-						forciblyCloseTCP(conn)
-						continue
-					}
-				case access.BlockMode:
-					if hit {
-						forciblyCloseTCP(conn)
-						continue
-					}
-				case access.DownMode:
-					if hit {
-						forciblyCloseTCP(conn)
-						continue
-					}
-				case access.JokeMode:
-					if hit {
-						forciblyCloseTCP(conn)
-						continue
-					}
+		conn, err := listen.Accept()
+		switch common.Unwrap(err) {
+		case net.ErrClosed, context.Canceled:
+			return
+		case nil:
+		default:
+			log.Panic(color.HiRedString("Service %s: Unexpected error when listening: %v", s.Name, err))
+		}
+		if s.IPAccess.Mode != access.DefaultMode {
+			// https://stackoverflow.com/questions/29687102/how-do-i-get-a-network-clients-ip-converted-to-a-string-in-golang
+			ip := conn.RemoteAddr().(*net.TCPAddr).IP.String()
+			hit := false
+			for _, list := range s.IPAccess.ListTags {
+				if hit = common.Must(access.GetTargetList(list)).Has(ip); hit {
+					break
 				}
 			}
-			go newConnReceiver(s, conn, options)
+			switch s.IPAccess.Mode {
+			case access.AllowMode:
+				if !hit {
+					forciblyCloseTCP(conn)
+					continue
+				}
+			case access.BlockMode:
+				if hit {
+					forciblyCloseTCP(conn)
+					continue
+				}
+			}
 		}
+		go newConnReceiver(s, conn.(*net.TCPConn), options)
 	}
 }
 
@@ -152,8 +150,11 @@ func getFlowType(flow string) int {
 	}
 }
 
-func forciblyCloseTCP(conn *net.TCPConn) {
+func forciblyCloseTCP(conn io.Closer) {
 	//nolint:errcheck
-	conn.SetLinger(0) // let Close send RST to forcibly close the connection
-	conn.Close()      // forcibly close
+	if tcpConn, isTCPConn := conn.(*net.TCPConn); isTCPConn {
+		// let Close send RST to forcibly close the connection
+		tcpConn.SetLinger(0)
+	}
+	conn.Close()
 }

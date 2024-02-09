@@ -1,8 +1,8 @@
 package config
 
 import (
-	"github.com/layou233/ZBProxy/common/set"
-	outbound2 "github.com/layou233/ZBProxy/outbound"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/set"
+	outbound2 "github.com/CubeWhyMC/NoDelay-Proxy-Server/outbound"
 )
 
 type configMain struct {
@@ -26,8 +26,8 @@ type ConfigProxyService struct {
 }
 
 type access struct {
-	Mode       string   // 'accept' or 'deny' or empty
-	ListTags   []string `json:",omitempty"`
+	Mode     string   // 'accept' or 'deny' or empty
+	ListTags []string `json:",omitempty"`
 }
 
 type minecraft struct {
@@ -55,6 +55,12 @@ type onlineCount struct {
 	Max            int
 	Online         int32
 	EnableMaxLimit bool
+	Sample         any `json:",omitempty"`
+}
+
+type Sample struct {
+	Name string `json:"name"`
+	ID   string `json:"id"`
 }
 
 type configAnyDest struct {

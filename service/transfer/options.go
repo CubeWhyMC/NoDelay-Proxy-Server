@@ -3,7 +3,7 @@ package transfer
 import (
 	"sync/atomic"
 
-	"github.com/layou233/ZBProxy/outbound"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/outbound"
 )
 
 type Options struct {

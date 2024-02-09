@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/layou233/ZBProxy/common"
-	"github.com/layou233/ZBProxy/common/buf"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/buf"
 
 	"github.com/fatih/color"
 )

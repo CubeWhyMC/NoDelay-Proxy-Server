@@ -6,7 +6,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/layou233/ZBProxy/common/rw"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/rw"
 )
 
 var ErrNotTLS = errors.New("not TLS header")

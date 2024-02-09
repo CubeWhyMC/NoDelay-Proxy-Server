@@ -2,18 +2,18 @@ package minecraft
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"math"
 	"net"
+	"strconv"
 	"strings"
 
-	"github.com/layou233/ZBProxy/common"
-	"github.com/layou233/ZBProxy/common/buf"
-	"github.com/layou233/ZBProxy/common/mcprotocol"
-	"github.com/layou233/ZBProxy/config"
-	"github.com/layou233/ZBProxy/service/access"
-	"github.com/layou233/ZBProxy/service/transfer"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/buf"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/mcprotocol"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/config"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/service/access"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/service/transfer"
 
 	"github.com/fatih/color"
 )
@@ -22,10 +22,11 @@ var (
 	// ErrSuccessfullyHandledMOTDRequest means the Minecraft client requested for MOTD
 	// and has been correctly handled by program. This used to skip the data forward
 	// process and directly go to the end of this connection.
-	ErrSuccessfullyHandledMOTDRequest = errors.New("")
-	ErrRejectedLogin                  = ErrSuccessfullyHandledMOTDRequest // don't cry baby
-	ErrBadPlayerName                  = ErrSuccessfullyHandledMOTDRequest
-	accessedPlayers                   = make(map[string]bool)
+	ErrSuccessfullyHandledMOTDRequest         = errors.New("handled MOTD")
+	ErrRejectedLoginAccessControl             = errors.New("interrupted by access control")
+	ErrRejectedLoginPlayerNumberLimitExceeded = errors.New("rejected due to player number limit exceeded")
+	ErrBadPlayerName                          = errors.New("rejected due to bad player name")
+	accessedPlayers                  		  = make(map[string]bool)
 )
 
 func badPacketPanicRecover(s *config.ConfigProxyService) {
@@ -34,15 +35,6 @@ func badPacketPanicRecover(s *config.ConfigProxyService) {
 	if err := recover(); err != nil {
 		log.Print(color.HiRedString("Service %s : Bad Minecraft packet was received: %v", s.Name, err))
 	}
-}
-
-func isFirstTime(playerName string) bool {
-	_, exists := accessedPlayers[playerName]
-	if !exists {
-		accessedPlayers[playerName] = true
-		return true
-	}
-	return false
 }
 
 func NewConnHandler(s *config.ConfigProxyService,
@@ -76,14 +68,13 @@ func NewConnHandler(s *config.ConfigProxyService,
 	if s.Minecraft.EnableHostnameAccess {
 		if !strings.Contains(hostname, s.Minecraft.HostnameAccess) {
 			c.(*net.TCPConn).SetLinger(0)
-			return nil, errors.New("hostname not allowed")
+			return nil, errors.New("hostname is not allowed")
 		}
 	}
 	if nextState == 1 { // status
 		if s.Minecraft.MotdDescription == "" && s.Minecraft.MotdFavicon == "" {
 			// directly proxy MOTD from server
-
-			remote, err := options.Out.Dial("tcp", fmt.Sprintf("%v:%v", s.TargetAddress, s.TargetPort))
+			remote, err := options.Out.Dial("tcp", net.JoinHostPort(s.TargetAddress, strconv.FormatInt(int64(s.TargetPort), 10)))
 			if err != nil {
 				return nil, err
 			}
@@ -94,16 +85,11 @@ func NewConnHandler(s *config.ConfigProxyService,
 				return nil, err
 			}
 
-			_, err = remote.Write([]byte{1, 0}) // Server bound : Status Request
-			if err != nil {
-				return nil, err
-			}
-
 			return remote, nil
 		} else {
 			// Server bound : Status Request
 			// Must read, but not used (and also nothing included in it)
-			buffer.Reset(mcprotocol.MaxVarIntLen)
+			//buffer.Reset(mcprotocol.MaxVarIntLen)
 			err = conn.ReadLimitedPacket(buffer, 1)
 			if err != nil {
 				return nil, err
@@ -114,28 +100,23 @@ func NewConnHandler(s *config.ConfigProxyService,
 			motdLen := len(motd)
 
 			buffer.Reset(mcprotocol.MaxVarIntLen)
-			common.Must0(buffer.WriteByte(0x00)) // Client bound : Status Response
-			common.Must(mcprotocol.VarInt(motdLen).WriteTo(buffer))
-			mcprotocol.AppendPacketLength(buffer, buffer.Len()+motdLen)
-
-			_, err = c.Write(buffer.Bytes())
-			if err != nil {
-				return nil, err
-			}
-			_, err = c.Write(motd)
+			common.Must0(mcprotocol.WriteToPacket(buffer,
+				byte(0x00), // Client bound : Status Response
+				mcprotocol.VarInt(motdLen),
+			))
+			err = conn.WriteVectorizedPacket(buffer, motd)
 			if err != nil {
 				return nil, err
 			}
 
-			// handle for ping request
+			// handle ping request
 			buffer.Reset(mcprotocol.MaxVarIntLen)
 			switch s.Minecraft.PingMode {
-			case pingModeBanned:
 			case pingModeDisconnect:
 			case pingMode0ms:
 				err = mcprotocol.WriteToPacket(buffer,
-					byte(0x01), // Client bound : Ping Response
-					int64(math.MaxInt64),
+					byte(0x01),           // Client bound : Ping Response
+					int64(math.MaxInt64), // this makes no sense but only a number
 				)
 				if err != nil {
 					return nil, err
@@ -164,8 +145,8 @@ func NewConnHandler(s *config.ConfigProxyService,
 	// Server bound : Login Start
 	// We only read its packet length and the player name, ignoring the rest part.
 	// Unread part would be sent to target during the copy stage.
-	// The reason for doing this is that this packet format has been modified many times in the history
-	// and it would take a lot of code to make it all compatible. So why not just forward it?
+	// The reason for doing this is that this packet format has been modified many times in the history,
+	// so it would take a lot of code to make it all compatible. So why not just forward it?
 	// Get player name and check the profile
 	buffer.Reset(mcprotocol.MaxVarIntLen)
 	loginStartLen, _, err := mcprotocol.ReadVarIntFrom(c)
@@ -198,65 +179,47 @@ func NewConnHandler(s *config.ConfigProxyService,
 		if err != nil {
 			return nil, err
 		}
-		msgLen := len(msg)
 
 		buffer.Reset(mcprotocol.MaxVarIntLen)
-		common.Must0(buffer.WriteByte(0x00)) // Client bound : Disconnect (login)
-		common.Must(mcprotocol.VarInt(msgLen).WriteTo(buffer))
-		mcprotocol.AppendPacketLength(buffer, buffer.Len()+msgLen)
-
-		_, err = c.Write(buffer.Bytes())
-		if err != nil {
-			return nil, err
-		}
-		_, err = c.Write(msg)
+		common.Must0(mcprotocol.WriteToPacket(buffer,
+			byte(0x00), // Client bound : Disconnect (login)
+			mcprotocol.VarInt(len(msg)),
+		))
+		err = conn.WriteVectorizedPacket(buffer, msg)
 		if err != nil {
 			return nil, err
 		}
 
 		c.(*net.TCPConn).SetLinger(10) //nolint:errcheck
 		c.Close()
-		return nil, ErrRejectedLogin
+		return nil, ErrRejectedLoginPlayerNumberLimitExceeded
 	}
 
-accessibility := "DEFAULT"
-if s.Minecraft.NameAccess.Mode != access.DefaultMode {
-    hit, err := access.IsWhitelist(playerName)
-    if err != nil {
-        return nil, err
-    }
-    if isFirstTime(playerName) {
-        accessibility = "NEW"
-    } else {
-        switch s.Minecraft.NameAccess.Mode {
-        case access.AllowMode:
-            if hit {
-                accessibility = "ALLOW"
-            } else {
-                accessibility = "DENY"
-            }
-        case access.BlockMode:
-            if hit {
-                accessibility = "REJECT"
-            } else {
-                accessibility = "PASS"
-            }
-        case access.DownMode:
-            if hit {
-                accessibility = "DOWN"
-            } else {
-                accessibility = "STOP"
-            }
-        case access.JokeMode:
-            if hit {
-                accessibility = "JOKE"
-            } else {
-                accessibility = "LMAO"
-            }
-        }
-    }
-}
-
+		accessibility := "DEFAULT"
+		if access.IsFirstTime(playerName) {
+			accessibility = "NEW" 
+		} else {
+		if s.Minecraft.NameAccess.Mode != access.DefaultMode {
+			hit, err := access.IsWhitelist(playerName)
+			if err != nil {
+				return nil, err
+			}
+			switch s.Minecraft.NameAccess.Mode {
+			case access.AllowMode:
+				if hit {
+					accessibility = "ALLOW"
+				} else {
+					accessibility = "DENY"
+				}
+			case access.BlockMode:
+				if hit {
+					accessibility = "REJECT"
+				} else {
+					accessibility = "PASS"
+				}
+			}
+		}
+	}
 	log.Printf("Service %s : %s New Minecraft player logged in: %s [%s]", s.Name, ctx.ColoredID, playerName, accessibility)
 	ctx.AttachInfo("PlayerName=" + playerName)
 	if accessibility == "DENY" || accessibility == "REJECT" {
@@ -264,116 +227,26 @@ if s.Minecraft.NameAccess.Mode != access.DefaultMode {
 		if err != nil {
 			return nil, err
 		}
-		msgLen := len(msg)
 
 		buffer.Reset(mcprotocol.MaxVarIntLen)
-		common.Must0(buffer.WriteByte(0x00)) // Client bound : Disconnect (login)
-		common.Must(mcprotocol.VarInt(msgLen).WriteTo(buffer))
-		mcprotocol.AppendPacketLength(buffer, buffer.Len()+msgLen)
-
-		_, err = c.Write(buffer.Bytes())
-		if err != nil {
-			return nil, err
-		}
-		_, err = c.Write(msg)
+		common.Must0(mcprotocol.WriteToPacket(buffer,
+			byte(0x00), // Client bound : Disconnect (login)
+			mcprotocol.VarInt(len(msg)),
+		))
+		err = conn.WriteVectorizedPacket(buffer, msg)
 		if err != nil {
 			return nil, err
 		}
 
 		c.(*net.TCPConn).SetLinger(10) //nolint:errcheck
 		c.Close()
-		return nil, ErrRejectedLogin
+		return nil, ErrRejectedLoginAccessControl
 	}
 
-	log.Printf("Service %s : %s New Minecraft player logged in: %s [%s]", s.Name, ctx.ColoredID, playerName, accessibility)
-	ctx.AttachInfo("PlayerName=" + playerName)
-	if accessibility == "JOKE" || accessibility == "LMAO" {
-		msg, err := generateJokeMessage(s, playerName).MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-		msgLen := len(msg)
-
-		buffer.Reset(mcprotocol.MaxVarIntLen)
-		common.Must0(buffer.WriteByte(0x00)) // Client bound : Disconnect (login)
-		common.Must(mcprotocol.VarInt(msgLen).WriteTo(buffer))
-		mcprotocol.AppendPacketLength(buffer, buffer.Len()+msgLen)
-
-		_, err = c.Write(buffer.Bytes())
-		if err != nil {
-			return nil, err
-		}
-		_, err = c.Write(msg)
-		if err != nil {
-			return nil, err
-		}
-
-		c.(*net.TCPConn).SetLinger(10) //nolint:errcheck
-		c.Close()
-		return nil, ErrRejectedLogin
-	}
-
-	log.Printf("Service %s : %s New Minecraft player logged in: %s [%s]", s.Name, ctx.ColoredID, playerName, accessibility)
-	ctx.AttachInfo("PlayerName=" + playerName)
-	if accessibility == "DOWN" || accessibility == "STOP" {
-		msg, err := generateDownMessage(s, playerName).MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-		msgLen := len(msg)
-
-		buffer.Reset(mcprotocol.MaxVarIntLen)
-		common.Must0(buffer.WriteByte(0x00)) // Client bound : Disconnect (login)
-		common.Must(mcprotocol.VarInt(msgLen).WriteTo(buffer))
-		mcprotocol.AppendPacketLength(buffer, buffer.Len()+msgLen)
-
-		_, err = c.Write(buffer.Bytes())
-		if err != nil {
-			return nil, err
-		}
-		_, err = c.Write(msg)
-		if err != nil {
-			return nil, err
-		}
-
-		c.(*net.TCPConn).SetLinger(10) //nolint:errcheck
-		c.Close()
-		return nil, ErrRejectedLogin
-	}
-
-	log.Printf("Service %s : %s New Minecraft player logged in: %s [%s]", s.Name, ctx.ColoredID, playerName, accessibility)
-	ctx.AttachInfo("PlayerName=" + playerName)
-	if accessibility == "NEW" {
-		msg, err := generateNewMessage(s, playerName).MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-		msgLen := len(msg)
-
-		buffer.Reset(mcprotocol.MaxVarIntLen)
-		common.Must0(buffer.WriteByte(0x00)) // Client bound : Disconnect (login)
-		common.Must(mcprotocol.VarInt(msgLen).WriteTo(buffer))
-		mcprotocol.AppendPacketLength(buffer, buffer.Len()+msgLen)
-
-		_, err = c.Write(buffer.Bytes())
-		if err != nil {
-			return nil, err
-		}
-		_, err = c.Write(msg)
-		if err != nil {
-			return nil, err
-		}
-
-		c.(*net.TCPConn).SetLinger(10) //nolint:errcheck
-		c.Close()
-		return nil, ErrRejectedLogin
-	}
-
-	remote, err := options.Out.Dial("tcp", fmt.Sprintf("%v:%v", s.TargetAddress, s.TargetPort))
+	remote, err := options.Out.Dial("tcp", net.JoinHostPort(s.TargetAddress, strconv.FormatInt(int64(s.TargetPort), 10)))
 	if err != nil {
-		log.Printf("Service %s : %s Failed to dial to target server: %v", s.Name, ctx.ColoredID, err.Error())
 		conn.Close()
-		return nil, err
+		return nil, common.Cause("failed to dial to target server: ", err)
 	}
 	remoteMC := mcprotocol.StreamConn(remote)
 

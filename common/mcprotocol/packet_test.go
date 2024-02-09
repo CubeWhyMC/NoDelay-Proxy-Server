@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/layou233/ZBProxy/common/buf"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/buf"
 
 	mcnet "github.com/Tnze/go-mc/net"
 	"github.com/Tnze/go-mc/net/packet"

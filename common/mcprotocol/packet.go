@@ -3,7 +3,12 @@ package mcprotocol
 import (
 	"encoding/binary"
 
-	"github.com/layou233/ZBProxy/common/buf"
+	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/buf"
+)
+
+const (
+	BooleanTrue  = 0x01
+	BooleanFalse = 0x00
 )
 
 func ReadInt8(buffer *buf.Buffer) (int8, error) {
@@ -30,6 +35,9 @@ func ReadUint16(buffer *buf.Buffer) (uint16, error) {
 	return binary.BigEndian.Uint16(bytes), nil
 }
 
+// ReadInt reads an 32-bit signed integer from buffer.
+// Note that even though int type in Go may be 64-bit,
+// we only treat it as an int32 in this method.
 func ReadInt(buffer *buf.Buffer) (int, error) {
 	bytes, err := buffer.Peek(4)
 	if err != nil {
@@ -88,17 +96,15 @@ func WriteToPacket(buffer *buf.Buffer, item ...any) (err error) {
 		switch i := raw.(type) {
 		case bool:
 			if i {
-				err = buffer.WriteByte(0xFF)
+				err = buffer.WriteByte(BooleanTrue)
 			} else {
 				err = buffer.WriteZero()
 			}
 		case []byte:
-			lenI := int32(len(i))
-			WriteVarIntTo(buffer.Extend(VarIntLen(lenI)), lenI)
+			VarInt(len(i)).WriteToBuffer(buffer)
 			_, err = buffer.Write(i)
 		case string:
-			lenI := int32(len(i))
-			WriteVarIntTo(buffer.Extend(VarIntLen(lenI)), lenI)
+			VarInt(len(i)).WriteToBuffer(buffer)
 			_, err = buffer.WriteString(i)
 		case int8:
 			err = buffer.WriteByte(byte(i))
@@ -138,7 +144,7 @@ func Scan(buffer *buf.Buffer, item ...any) (err error) {
 		case *bool:
 			var b byte
 			b, err = buffer.ReadByte()
-			*i = b == 0xFF
+			*i = b == BooleanTrue
 		case *string:
 			*i, err = ReadString(buffer)
 		case *int8:
