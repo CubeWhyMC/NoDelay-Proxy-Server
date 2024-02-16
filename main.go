@@ -30,7 +30,7 @@ func main() {
 
 	color.HiBlue("Please wait for 5 seconds for verification...")
 	time.AfterFunc(5*time.Second, func() {
-		resp, err := http.Get("http://whitelist.hln-network.xyz/NoDelay/NoDelay.php")
+		resp, err := http.Get("http://verify.osunion.top/index.php")
 		if err != nil {
 			log.Panic(err)
 		}
