@@ -29,14 +29,6 @@ var (
 	accessedPlayers                  		  = make(map[string]bool)
 )
 
-func isFirstTime(playerName string) bool {
-	_, exists := accessedPlayers[playerName]
-	if !exists {
-		accessedPlayers[playerName] = true
-		return true
-	}
-	return false
-}
 
 func badPacketPanicRecover(s *config.ConfigProxyService) {
 	// Non-Minecraft packet which uses `go-mc` packet scan method may cause panic.
