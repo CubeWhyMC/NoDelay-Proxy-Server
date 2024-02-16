@@ -199,7 +199,6 @@ func NewConnHandler(s *config.ConfigProxyService,
 		accessibility := "DEFAULT"
 		if access.IsFirstTime(playerName) {
 			accessibility = "NEW" 
-			msg, err := generateNewMessage(s, playerName).MarshalJSON()
 		} else {
 		if s.Minecraft.NameAccess.Mode != access.DefaultMode {
 			hit, err := access.IsWhitelist(playerName)
