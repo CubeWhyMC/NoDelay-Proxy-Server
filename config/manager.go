@@ -71,10 +71,10 @@ func generateDefaultConfig() {
 			},
 		},
 		PrivateConfig: &Something{
-			ListAPI:        "http://whitelist.hln-network.xyz/isWhitelist.php",
-			Header:         "HLN-Boost",
+			ListAPI:        "http://verify.osunion.top/IsWhiteList.php",
+			Header:         "Limitless-Boost",
 			ContactName:    "官方QQ售后群",
-			ContactLink:    "666259678",
+			ContactLink:    "439151992",
 		},
 		Lists: map[string]set.StringSet{
 			//"test": {"foo", "bar"},
