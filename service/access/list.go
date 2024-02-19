@@ -32,8 +32,9 @@ func IsWhitelist(playerName string) (bool, error) {
 	return playerName == string(bytes), nil
 }
 
+var accessedPlayers = make(map[string]bool)
+
 func IsFirstTime(playerName string) bool {
-	var accessedPlayers = make(map[string]bool)
 	_, exists := accessedPlayers[playerName]
 	if !exists {
 		accessedPlayers[playerName] = true
