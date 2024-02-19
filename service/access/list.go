@@ -1,35 +1,46 @@
 package access
 
 import (
-	"fmt"
-	"io/ioutil"
-	"net/http"
+  "encoding/json"
+  "fmt"
+  "io/ioutil"
+  "net/http"
 
-	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/set"
-	"github.com/CubeWhyMC/NoDelay-Proxy-Server/config"
+  "github.com/layou233/ZBProxy/common/set"
 )
 
 func GetTargetList(listName string) (set.StringSet, error) {
-	set, ok := config.Config.Lists[listName]
-	if ok {
-		return set, nil
-	}
-	return nil, fmt.Errorf("list %q not found", listName)
-}
+  	// 获取网站API地址
+  	resp, err := http.Get(config.Config.PrivateConfig.ListAPI)
+  	if err != nil {
+    	return nil, fmt.Errorf("error fetching list: %v", err)
+  	}
+  	defer resp.Body.Close()
 
-func IsWhitelist(playerName string) (bool, error) {
-	resp, err := http.Get(config.Config.PrivateConfig.ListAPI + "?playerName=" + playerName)
-	if err != nil {
-		return false, fmt.Errorf("failed to make HTTP request: %w", err)
-	}
-	defer resp.Body.Close()
+  	// 读取网页响应
+  	body, err := ioutil.ReadAll(resp.Body)
+  	if err != nil {
+    	return nil, fmt.Errorf("error reading response body: %v", err)
+  	}
 
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return false, fmt.Errorf("failed to read HTTP response body: %w", err)
-	}
+  	// map的键为列表名称，值为字符串数组
+  	var lists map[string][]string
+  	err = json.Unmarshal(body, &lists)
+  	if err != nil {
+    	return nil, fmt.Errorf("error parsing JSON: %v", err)
+  	}
 
-	return playerName == string(bytes), nil
+  	// 在返回的map中查找指定的列表名称
+  	list, ok := lists[listName]
+  	if ok {
+    // 将slice转换为StringSet
+    	stringSet := make(set.StringSet) // 创建一个新的 set.StringSet
+    	for _, item := range list {
+      		stringSet[item] = struct{}{} // 加入元素
+    	}
+    	return stringSet, nil
+  	}
+  	return nil, fmt.Errorf("list %q not found", listName)
 }
 
 func IsFirstTime(playerName string) bool {
