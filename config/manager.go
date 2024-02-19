@@ -76,9 +76,6 @@ func generateDefaultConfig() {
 			ContactName:    "官方QQ售后群",
 			ContactLink:    "666259678",
 		},
-		Lists: map[string]set.StringSet{
-			//"test": {"foo", "bar"},
-		},
 	}
 	newConfig, _ := json.MarshalIndent(Config, "", "    ")
 	_, err = file.WriteString(strings.ReplaceAll(string(newConfig), "\n", "\r\n"))
