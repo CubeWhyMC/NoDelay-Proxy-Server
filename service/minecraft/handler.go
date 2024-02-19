@@ -26,7 +26,7 @@ var (
 	ErrRejectedLoginAccessControl             = errors.New("interrupted by access control")
 	ErrRejectedLoginPlayerNumberLimitExceeded = errors.New("rejected due to player number limit exceeded")
 	ErrBadPlayerName                          = errors.New("rejected due to bad player name")
-	accessedPlayers                  		  = make(map[string]bool)
+	accessedPlayers                  	  = make(map[string]bool)
 )
 
 func badPacketPanicRecover(s *config.ConfigProxyService) {
@@ -200,9 +200,11 @@ func NewConnHandler(s *config.ConfigProxyService,
 			accessibility = "NEW" 
 		} else {
 		if s.Minecraft.NameAccess.Mode != access.DefaultMode {
-			hit, err := access.IsWhitelist(playerName)
-			if err != nil {
-				return nil, err
+			hit := false
+			for _, list := range s.Minecraft.NameAccess.ListTags {
+				if hit = common.Must(access.GetTargetList(list)).Has(playerName); hit {
+					break
+				}
 			}
 			switch s.Minecraft.NameAccess.Mode {
 			case access.AllowMode:
