@@ -19,7 +19,7 @@
 🔨 **配置说明**
 
 - `PrivateConfig`: 私有配置，包括白名单API地址、自定义表头、联系名称和链接。
-- 如果你使用的是`master`版本，请保证你的API能通过Get形式传入playerName参数，例如：```https://example.com/isWhitelist.php?playerName=```，ListAPI中不要带有`?playerName=`,并且当playerName正确或查询到的情况下，返回playerName。
+- 如果你使用的是`master`版本，请保证你的API能通过Get形式传入playerName参数，例如：`https://example.com/isWhitelist.php?playerName=`，ListAPI中不要带有`?playerName=`,并且当playerName正确或查询到的情况下，返回playerName。
 - 如果你使用的是`OtherVerifications`版本，请保证你的API返回的是同原版ZBProxy的List形式，例如：
   ```json
   {
