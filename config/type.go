@@ -8,7 +8,6 @@ import (
 type configMain struct {
 	Services []*ConfigProxyService
 	PrivateConfig *Something
-	Lists    map[string]set.StringSet
 }
 
 type ConfigProxyService struct {
