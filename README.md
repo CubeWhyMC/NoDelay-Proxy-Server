@@ -4,7 +4,9 @@
 该项目是一个基于ZBProxy魔改的Minecraft服务器代理程序。NoDelay是一个功能强大的代理工具，用于优化和管理Minecraft游戏的网络连接。
 
 ⚙️ **添加的配置文件结构**
+
 该项目添加了私有配置，包括白名单API地址、自定义表头、联系名称和链接。
+
 ```json
 {
     "PrivateConfig": {
