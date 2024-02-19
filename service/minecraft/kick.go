@@ -77,3 +77,18 @@ func generatePlayerNumberLimitExceededMessage(s *config.ConfigProxyService, name
 		},
 	}
 }
+
+func generateNewMessage(s *config.ConfigProxyService, name string) mcprotocol.Message {
+	return mcprotocol.Message{
+		Color: mcprotocol.White,
+		Extra: []mcprotocol.Message{
+			{Bold: true, Color: mcprotocol.Green, Text: "=========首次进入提示=========\n"},
+			{Color: mcprotocol.Red, Text: "检测到您当前第一次进入本IP!\n"},
+			{Color: mcprotocol.LightPurple, Text: "本IP暂不支持防安全警报。\n"},
+			{Color: mcprotocol.Blue, Text: "请使用21+或已经历安全警报的账号进入本IP!\n"},
+			{Color: mcprotocol.Gold, Text: "一旦被安全警报我们概不负责!\n"},
+			{Color: mcprotocol.Green, Text: "如果已经使用21+或已经历安全警报的账号，请尝试重新进入。\n"},
+			{Color: mcprotocol.White, Text: "还有其他问题，请开票获取支持!"},
+		},
+	}
+}
