@@ -1,6 +1,7 @@
 ## NoDelay
 
 📝 **本项目简介**  
+
 该项目是一个基于ZBProxy魔改的Minecraft服务器代理程序。NoDelay是一个功能强大的代理工具，用于优化和管理Minecraft游戏的网络连接。
 
 ⚙️ **添加的配置文件结构**
@@ -20,7 +21,6 @@
 
 🔨 **配置说明**
 
-- `PrivateConfig`: 私有配置，包括白名单API地址、自定义表头、联系名称和链接。
 - 如果你使用的是`master`版本，请保证你的API能通过Get形式传入playerName参数，例如：`https://example.com/isWhitelist.php?playerName=`，ListAPI中不要带有`?playerName=`,并且当playerName正确或查询到的情况下，返回playerName。
 - 如果你使用的是`OtherVerifications`版本，请保证你的API返回的是同原版ZBProxy的List形式，例如：
   ```json
@@ -32,6 +32,7 @@
   ```
 
 ❗️ **注意事项**
+
 - 请根据实际需求修改配置文件中的各项设置。
 - 详细的配置说明和使用方法，请参考项目文档或相关资源。
 
