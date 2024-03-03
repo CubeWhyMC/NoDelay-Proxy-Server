@@ -26,7 +26,6 @@ var (
 	ErrRejectedLoginAccessControl             = errors.New("interrupted by access control")
 	ErrRejectedLoginPlayerNumberLimitExceeded = errors.New("rejected due to player number limit exceeded")
 	ErrBadPlayerName                          = errors.New("rejected due to bad player name")
-	accessedPlayers                  		  = make(map[string]bool)
 )
 
 func badPacketPanicRecover(s *config.ConfigProxyService) {
