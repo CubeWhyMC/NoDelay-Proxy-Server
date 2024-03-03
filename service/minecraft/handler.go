@@ -228,22 +228,6 @@ func NewConnHandler(s *config.ConfigProxyService,
 			return nil, err
 		}
 
-		buffer.Reset(mcprotocol.MaxVarIntLen)
-		common.Must0(mcprotocol.WriteToPacket(buffer,
-			byte(0x00), // Client bound : Disconnect (login)
-			mcprotocol.VarInt(len(msg)),
-		))
-		err = conn.WriteVectorizedPacket(buffer, msg)
-		if err != nil {
-			return nil, err
-		}
-
-		c.(*net.TCPConn).SetLinger(10) //nolint:errcheck
-		c.Close()
-		return nil, ErrRejectedLoginAccessControl
-	}
-	log.Printf("Service %s : %s New Minecraft player logged in: %s [%s]", s.Name, ctx.ColoredID, playerName, accessibility)
-	ctx.AttachInfo("PlayerName=" + playerName)
 	if accessibility == "NEW" {
 		msg, err := generateNewMessage(s, playerName).MarshalJSON()
 		if err != nil {
