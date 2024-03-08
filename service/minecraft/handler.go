@@ -227,12 +227,6 @@ func NewConnHandler(s *config.ConfigProxyService,
 			return nil, err
 		}
 
-	if accessibility == "NEW" {
-		msg, err := generateNewMessage(s, playerName).MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-
 		buffer.Reset(mcprotocol.MaxVarIntLen)
 		common.Must0(mcprotocol.WriteToPacket(buffer,
 			byte(0x00), // Client bound : Disconnect (login)
@@ -248,6 +242,27 @@ func NewConnHandler(s *config.ConfigProxyService,
 		return nil, ErrRejectedLoginAccessControl
 	}
 
+		if accessibility == "NEW" {
+		msg, err := generateNewMessage(s, playerName).MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+			
+		buffer.Reset(mcprotocol.MaxVarIntLen)
+		common.Must0(mcprotocol.WriteToPacket(buffer,
+			byte(0x00), // Client bound : Disconnect (login)
+			mcprotocol.VarInt(len(msg)),
+		))
+		err = conn.WriteVectorizedPacket(buffer, msg)
+		if err != nil {
+			return nil, err
+		}
+
+		c.(*net.TCPConn).SetLinger(10) //nolint:errcheck
+		c.Close()
+		return nil, ErrRejectedLoginAccessControl
+	}
+		
 	remote, err := options.Out.Dial("tcp", net.JoinHostPort(s.TargetAddress, strconv.FormatInt(int64(s.TargetPort), 10)))
 	if err != nil {
 		conn.Close()
