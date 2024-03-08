@@ -1,7 +1,6 @@
 package config
 
 import (
-	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/set"
 	outbound2 "github.com/CubeWhyMC/NoDelay-Proxy-Server/outbound"
 )
 
