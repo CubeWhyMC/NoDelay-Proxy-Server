@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/CubeWhyMC/NoDelay-Proxy-Server/common/set"
 	"github.com/CubeWhyMC/NoDelay-Proxy-Server/version"
 
 	"github.com/fatih/color"
